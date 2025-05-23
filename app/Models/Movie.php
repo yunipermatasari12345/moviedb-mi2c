@@ -9,4 +9,8 @@ class Movie extends Model
 {
     /** @use HasFactory<\Database\Factories\MovieFactory> */
     use HasFactory;
+    public function category()
+    {
+    return $this->belongsTo(Category::class);
+    }
 }
