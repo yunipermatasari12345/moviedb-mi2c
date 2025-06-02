@@ -2,64 +2,63 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Category;
 use App\Models\Movie;
-use Illuminate\Http\Request;
+use App\Models\Category;
 use Illuminate\Support\Str;
+use Illuminate\Http\Request;
 
 class MovieController extends Controller
 {
-    // Menampilkan homepage dengan 6 movie terbaru (pagination)
     public function homepage()
     {
         $movies = Movie::latest()->paginate(6);
         return view('homepage', compact('movies'));
     }
 
-    // Menampilkan detail movie berdasarkan ID
-    public function show($id)
+    public function detail_movie($id, $lug)
     {
-        $movie = Movie::findOrFail($id);
-        return view('detail', compact('movie'));
+        $movie = Movie::find($id);
+        return view('detail_movie', compact('movie'));
     }
 
-    // Menampilkan form create movie
     public function create()
     {
         $categories = Category::all();
         return view('create_movie', compact('categories'));
     }
 
-    // Menyimpan movie baru ke database
     public function store(Request $request)
     {
         // Validasi input
-        $request->validate([
+        $validated = $request->validate([
             'title' => 'required|string|max:255',
-            'synopsis' => 'required|string',
+            'synopsis' => 'nullable|string',
             'category_id' => 'required|exists:categories,id',
-            'year' => 'required|integer',
-            'actors' => 'required|string',
-            'cover_image' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+            'year' => 'required|integer|min:1900|max:' . date('Y'),
+            'actors' => 'nullable|string',
+            'cover_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
 
-        // Simpan file gambar ke storage/public/covers
-        $imagePath = $request->file('cover_image')->store('covers', 'public');
-
-        // Generate slug dari title
+        // Buat slug dari title
         $slug = Str::slug($request->title);
 
-        // Simpan data ke database dengan mass assignment
+        // Handle upload gambar jika ada
+        $coverPath = null;
+        if ($request->hasFile('cover_image')) {
+            $coverPath = $request->file('cover_image')->store('covers', 'public');
+        }
+
+        // Simpan data movie ke database
         Movie::create([
-            'title' => $request->title,
+            'title' => $validated['title'],
             'slug' => $slug,
-            'synopsis' => $request->synopsis,
-            'category_id' => $request->category_id,
-            'year' => $request->year,
-            'actors' => $request->actors,
-            'cover_image' => 'storage/' . $imagePath,
+            'synopsis' => $validated['synopsis'],
+            'category_id' => $validated['category_id'],
+            'year' => $validated['year'],
+            'actors' => $validated['actors'],
+            'cover_image' => $coverPath,
         ]);
 
-        return redirect('/')->with('success', 'Movie created successfully!');
+        return redirect('/')->with('success', 'Data movie berhasil disimpan.');
     }
 }
